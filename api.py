@@ -3,7 +3,8 @@ from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
 import pytesseract
 import requests
-
+import os
+os.environ["TESSDATA_PREFIX"] = "/usr/share/tesseract-ocr/4.00/tessdata/"
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
@@ -74,7 +75,8 @@ def ocr_from_url():
             custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
             text = pytesseract.image_to_string(
                 processed_img,
-                config=custom_config
+                config=custom_config,
+                lang='eng'
             ).strip()
 
             return jsonify({
