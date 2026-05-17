@@ -3,6 +3,8 @@ import base64
 import re
 import pytesseract
 from PIL import Image
+from io import BytesIO
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -18,8 +20,11 @@ def solve():
                 "message": "base64 parameter missing"
             })
 
-        # Fix escaped slashes
-        base64_data = base64_data.replace("\\/", "/")
+        # URL decode
+        base64_data = urllib.parse.unquote(base64_data)
+
+        # Fix spaces back to +
+        base64_data = base64_data.replace(" ", "+")
 
         # Remove data:image/png;base64,
         if "," in base64_data:
@@ -28,16 +33,15 @@ def solve():
         # Decode image
         image_bytes = base64.b64decode(base64_data)
 
-        # Save image
-        with open("captcha.png", "wb") as f:
-            f.write(image_bytes)
+        # Open image directly from memory
+        img = Image.open(BytesIO(image_bytes))
 
         # OCR
-        text = pytesseract.image_to_string(Image.open("captcha.png")).strip()
+        text = pytesseract.image_to_string(img).strip()
 
         print("Detected:", text)
 
-        # Extract math expression
+        # Extract expression
         match = re.search(r'(\d+)\s*([\+\-\*\/])\s*(\d+)', text)
 
         if not match:
@@ -51,7 +55,6 @@ def solve():
         op = match.group(2)
         b = int(match.group(3))
 
-        # Solve
         if op == "+":
             answer = a + b
         elif op == "-":
@@ -60,11 +63,6 @@ def solve():
             answer = a * b
         elif op == "/":
             answer = a / b
-        else:
-            return jsonify({
-                "success": False,
-                "message": "Invalid operator"
-            })
 
         return jsonify({
             "success": True,
@@ -77,12 +75,6 @@ def solve():
             "success": False,
             "error": str(e)
         })
-
-
-@app.route("/")
-def home():
-    return "Captcha Solver API Running"
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
