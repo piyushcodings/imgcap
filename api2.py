@@ -1,23 +1,21 @@
 from flask import Flask, request, jsonify
 import base64
 import re
-import os
 import pytesseract
 from PIL import Image
 
 app = Flask(__name__)
 
-@app.route("/solve", methods=["POST"])
+@app.route("/solve", methods=["GET"])
 def solve():
 
     try:
-        data = request.json
-        base64_data = data.get("base64", "")
+        base64_data = request.args.get("base64", "")
 
         if not base64_data:
             return jsonify({
                 "success": False,
-                "message": "Base64 missing"
+                "message": "base64 parameter missing"
             })
 
         # Fix escaped slashes
@@ -30,20 +28,16 @@ def solve():
         # Decode image
         image_bytes = base64.b64decode(base64_data)
 
-        # Save temp image
-        image_path = "captcha.png"
-
-        with open(image_path, "wb") as f:
+        # Save image
+        with open("captcha.png", "wb") as f:
             f.write(image_bytes)
 
         # OCR
-        text = pytesseract.image_to_string(Image.open(image_path))
-
-        text = text.strip()
+        text = pytesseract.image_to_string(Image.open("captcha.png")).strip()
 
         print("Detected:", text)
 
-        # Find math expression
+        # Extract math expression
         match = re.search(r'(\d+)\s*([\+\-\*\/])\s*(\d+)', text)
 
         if not match:
@@ -60,16 +54,12 @@ def solve():
         # Solve
         if op == "+":
             answer = a + b
-
         elif op == "-":
             answer = a - b
-
         elif op == "*":
             answer = a * b
-
         elif op == "/":
             answer = a / b
-
         else:
             return jsonify({
                 "success": False,
